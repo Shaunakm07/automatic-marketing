@@ -18,7 +18,7 @@ HIGGSFIELD_API_URL       = os.getenv("HIGGSFIELD_API_URL", "https://api.higgsfie
 SUPABASE_URL             = os.environ["SUPABASE_URL"]
 SUPABASE_SERVICE_ROLE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
-GITHUB_TOKEN             = os.environ["GITHUB_TOKEN"]
+GITHUB_TOKEN             = os.getenv("GITHUB_TOKEN", "")
 BRAIN_LLM_REPO           = os.getenv("BRAIN_LLM_REPO", "Shaunakm07/Brain-LLM-Fine-Tuning")
 
 DRY_RUN                  = os.getenv("DRY_RUN", "false").lower() == "true"
