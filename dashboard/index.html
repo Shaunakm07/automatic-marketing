@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Amphora · Marketing Ops</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { gray: { 950: '#0a0a0f' } },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+        }
+      }
+    }
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #374151; border-radius: 2px; }
+    [x-cloak] { display: none !important; }
+    .prose-dark { white-space: pre-wrap; word-break: break-word; font-size: 0.8rem; line-height: 1.6; }
+    .score-bar { transition: width 0.4s ease; }
+  </style>
+</head>
+
+<body class="h-full bg-gray-950 text-white" x-data="amphoraApp()" x-init="init()" x-cloak>
+
+  <!-- Toast -->
+  <div
+    x-show="toast"
+    x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="opacity-0 translate-y-2"
+    x-transition:enter-end="opacity-100 translate-y-0"
+    x-transition:leave="transition ease-in duration-150"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0"
+    class="fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium shadow-xl ring-1"
+    :class="toast?.type === 'error'
+      ? 'bg-red-950 text-red-300 ring-red-800'
+      : 'bg-gray-800 text-white ring-gray-700'"
+  >
+    <span x-text="toast?.type === 'error' ? '✕' : '✓'"
+          class="text-base" :class="toast?.type === 'error' ? 'text-red-400' : 'text-green-400'"></span>
+    <span x-text="toast?.msg"></span>
+  </div>
+
+  <!-- Layout -->
+  <div class="flex h-full">
+
+    <!-- Sidebar -->
+    <aside class="w-56 flex-shrink-0 flex flex-col bg-gray-900 border-r border-gray-800/60">
+
+      <!-- Logo -->
+      <div class="px-4 py-5 border-b border-gray-800/60">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm select-none">A</div>
+          <div>
+            <div class="text-sm font-semibold leading-tight">Amphora</div>
+            <div class="text-[11px] text-gray-500 leading-tight">Marketing Ops</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nav -->
+      <nav class="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
+        <template x-for="item in navItems" :key="item.id">
+          <button
+            @click="navigate(item.id)"
+            class="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors"
+            :class="section === item.id
+              ? 'bg-indigo-600/20 text-indigo-300 font-medium'
+              : 'text-gray-400 hover:text-white hover:bg-gray-800/60'"
+          >
+            <span class="text-base" x-text="item.icon"></span>
+            <span x-text="item.label"></span>
+            <span
+              x-show="item.badge && item.badge() > 0"
+              class="ml-auto text-[10px] font-semibold bg-indigo-600 text-white rounded-full px-1.5 py-0.5 leading-none"
+              x-text="item.badge()"
+            ></span>
+          </button>
+        </template>
+      </nav>
+
+      <!-- Bottom status -->
+      <div class="px-4 py-3 border-t border-gray-800/60">
+        <div class="text-[11px] text-gray-600">
+          <div class="flex items-center gap-1.5 mb-1">
+            <span class="w-1.5 h-1.5 rounded-full"
+                  :class="anyPipelineRunning ? 'bg-amber-400 animate-pulse' : 'bg-green-500'"></span>
+            <span x-text="anyPipelineRunning ? 'Pipeline running…' : 'All systems idle'"></span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="flex-1 overflow-y-auto bg-gray-950">
+
+      <!-- ================================================================
+           OVERVIEW
+           ================================================================ -->
+      <section x-show="section === 'overview'" class="p-8 max-w-5xl mx-auto">
+
+        <div class="mb-7">
+          <h1 class="text-xl font-semibold">Overview</h1>
+          <p class="text-sm text-gray-500 mt-0.5" x-text="`Good ${greeting()}, Shaunak.`"></p>
+        </div>
+
+        <!-- Stat cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <template x-for="card in statCards" :key="card.label">
+            <div class="rounded-xl bg-gray-900 border border-gray-800/60 p-4">
+              <div class="text-xs text-gray-500 mb-1" x-text="card.label"></div>
+              <div class="text-2xl font-bold" x-text="loading.stats ? '—' : card.value()"></div>
+              <div class="text-[11px] text-gray-600 mt-1" x-text="card.sub ? card.sub() : ''"></div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Two columns: queue preview + drafts preview -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          <!-- Queue preview -->
+          <div class="rounded-xl bg-gray-900 border border-gray-800/60 overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800/60">
+              <h2 class="text-sm font-medium">LinkedIn Queue</h2>
+              <button @click="navigate('queue')" class="text-xs text-indigo-400 hover:text-indigo-300">View all →</button>
+            </div>
+            <div x-show="loading.queue" class="p-4 text-sm text-gray-600 animate-pulse">Loading…</div>
+            <div x-show="!loading.queue && queue.length === 0" class="p-4 text-sm text-gray-600">Queue is empty.</div>
+            <div class="divide-y divide-gray-800/40">
+              <template x-for="post in queue.slice(0, 3)" :key="post.id">
+                <div class="px-4 py-3">
+                  <span class="text-[10px] font-medium rounded px-1.5 py-0.5 mr-2" :class="pillarColor(post.pillar)" x-text="pillarShort(post.pillar)"></span>
+                  <span class="text-sm text-gray-300" x-text="truncate(post.post_text, 90)"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Drafts preview -->
+          <div class="rounded-xl bg-gray-900 border border-gray-800/60 overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800/60">
+              <h2 class="text-sm font-medium">Pending Drafts</h2>
+              <button @click="navigate('drafts')" class="text-xs text-indigo-400 hover:text-indigo-300">View all →</button>
+            </div>
+            <div x-show="loading.drafts" class="p-4 text-sm text-gray-600 animate-pulse">Loading…</div>
+            <div x-show="!loading.drafts && drafts.length === 0" class="p-4 text-sm text-gray-600">No drafts pending.</div>
+            <div class="divide-y divide-gray-800/40">
+              <template x-for="draft in drafts.slice(0, 3)" :key="draft.id">
+                <div class="px-4 py-3 flex items-start gap-3">
+                  <span class="text-[10px] font-medium rounded px-1.5 py-0.5 mt-0.5 flex-shrink-0" :class="typeColor(draft.content_type)" x-text="typeShort(draft.content_type)"></span>
+                  <span class="text-sm text-gray-300 line-clamp-2" x-text="draft.title"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Feature roadmap -->
+        <div class="mt-8 rounded-xl bg-gray-900 border border-gray-800/60 overflow-hidden">
+          <div class="px-4 py-3 border-b border-gray-800/60 flex items-center justify-between">
+            <h2 class="text-sm font-medium">Feature Roadmap</h2>
+            <span class="text-[10px] text-gray-600">Ideas to build next</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-gray-800/40">
+            <template x-for="feat in roadmapFeatures" :key="feat.title">
+              <div class="bg-gray-900 p-4">
+                <div class="flex items-start gap-2">
+                  <span class="text-lg flex-shrink-0" x-text="feat.icon"></span>
+                  <div>
+                    <div class="text-sm font-medium text-gray-200" x-text="feat.title"></div>
+                    <div class="text-xs text-gray-500 mt-0.5 leading-relaxed" x-text="feat.desc"></div>
+                    <span class="inline-block mt-1.5 text-[10px] font-medium rounded px-1.5 py-0.5"
+                      :class="feat.status === 'live' ? 'bg-green-900/50 text-green-400' :
+                              feat.status === 'building' ? 'bg-amber-900/50 text-amber-400' :
+                              'bg-gray-800 text-gray-500'"
+                      x-text="feat.status === 'live' ? '✓ Live' : feat.status === 'building' ? '⚡ Building' : 'Idea'">
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+      </section>
+
+
+      <!-- ================================================================
+           LINKEDIN QUEUE
+           ================================================================ -->
+      <section x-show="section === 'queue'" class="p-8 max-w-4xl mx-auto">
+
+        <div class="flex items-center justify-between mb-7">
+          <div>
+            <h1 class="text-xl font-semibold">LinkedIn Queue</h1>
+            <p class="text-sm text-gray-500 mt-0.5">Posts scheduled to publish daily at 9 AM PT</p>
+          </div>
+          <button
+            @click="runPipeline('linkedin')"
+            :disabled="pipelines.linkedin.running"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <span x-show="pipelines.linkedin.running" class="animate-spin">⟳</span>
+            <span x-text="pipelines.linkedin.running ? 'Posting…' : 'Post Next Now'"></span>
+          </button>
+        </div>
+
+        <div x-show="loading.queue" class="text-sm text-gray-600 animate-pulse py-8 text-center">Loading queue…</div>
+
+        <div x-show="!loading.queue && queue.length === 0" class="text-center py-16 text-gray-600">
+          <div class="text-3xl mb-2">📭</div>
+          <div class="text-sm">Queue is empty. Run the full pipeline to generate posts.</div>
+        </div>
+
+        <div class="space-y-3">
+          <template x-for="(post, i) in queue" :key="post.id">
+            <div class="rounded-xl bg-gray-900 border border-gray-800/60 overflow-hidden">
+
+              <!-- Header row -->
+              <div
+                class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-800/40 transition-colors"
+                @click="selectedPost = selectedPost === post.id ? null : post.id"
+              >
+                <span class="text-xs text-gray-600 font-mono w-5 flex-shrink-0" x-text="i+1"></span>
+                <span class="text-[10px] font-medium rounded px-1.5 py-0.5 flex-shrink-0" :class="pillarColor(post.pillar)" x-text="pillarLabel(post.pillar)"></span>
+                <span class="text-sm text-gray-300 flex-1 min-w-0 truncate" x-text="truncate(post.post_text, 110)"></span>
+                <span class="text-[11px] text-gray-600 flex-shrink-0" x-text="formatDate(post.created_at)"></span>
+                <span class="text-gray-600 text-xs flex-shrink-0" x-text="selectedPost === post.id ? '▲' : '▼'"></span>
+              </div>
+
+              <!-- Expanded -->
+              <div x-show="selectedPost === post.id" class="border-t border-gray-800/60 px-4 py-4">
+                <pre class="prose-dark text-gray-300 mb-4" x-text="post.post_text"></pre>
+                <div class="flex gap-2">
+                  <button
+                    @click="postNow(post.id)"
+                    class="px-3 py-1.5 rounded-md text-xs font-medium bg-green-600/20 text-green-300 hover:bg-green-600/40 ring-1 ring-green-600/30 transition-colors"
+                  >Post to LinkedIn now</button>
+                  <button
+                    @click="skipPost(post.id)"
+                    class="px-3 py-1.5 rounded-md text-xs font-medium bg-gray-800 text-gray-400 hover:bg-gray-700 transition-colors"
+                  >Skip</button>
+                </div>
+              </div>
+
+            </div>
+          </template>
+        </div>
+
+      </section>
+
+
+      <!-- ================================================================
+           DRAFTS
+           ================================================================ -->
+      <section x-show="section === 'drafts'" class="p-8 max-w-4xl mx-auto">
+
+        <div class="flex items-center justify-between mb-7">
+          <div>
+            <h1 class="text-xl font-semibold">Drafts</h1>
+            <p class="text-sm text-gray-500 mt-0.5">Review AI-generated content before publishing</p>
+          </div>
+          <!-- Filter tabs -->
+          <div class="flex gap-1 bg-gray-900 rounded-lg p-1 border border-gray-800/60">
+            <template x-for="tab in draftTabs" :key="tab.value">
+              <button
+                @click="draftFilter = tab.value"
+                class="px-3 py-1 rounded-md text-xs font-medium transition-colors"
+                :class="draftFilter === tab.value
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-gray-400 hover:text-white'"
+                x-text="tab.label"
+              ></button>
+            </template>
+          </div>
+        </div>
+
+        <div x-show="loading.drafts" class="text-sm text-gray-600 animate-pulse py-8 text-center">Loading drafts…</div>
+
+        <div x-show="!loading.drafts && filteredDrafts.length === 0" class="text-center py-16 text-gray-600">
+          <div class="text-3xl mb-2">📄</div>
+          <div class="text-sm">No drafts here. Run a pipeline to generate content.</div>
+        </div>
+
+        <div class="space-y-3">
+          <template x-for="draft in filteredDrafts" :key="draft.id">
+            <div class="rounded-xl bg-gray-900 border border-gray-800/60 overflow-hidden">
+
+              <!-- Header -->
+              <div
+                class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-800/40 transition-colors"
+                @click="selectedDraft = selectedDraft === draft.id ? null : draft.id"
+              >
+                <span class="text-[10px] font-medium rounded px-1.5 py-0.5 flex-shrink-0" :class="typeColor(draft.content_type)" x-text="typeLabel(draft.content_type)"></span>
+                <span class="text-sm font-medium text-gray-200 flex-1 min-w-0 truncate" x-text="draft.title"></span>
+                <span class="text-[11px] text-gray-600 flex-shrink-0" x-text="formatDate(draft.created_at)"></span>
+                <span class="text-gray-600 text-xs flex-shrink-0" x-text="selectedDraft === draft.id ? '▲' : '▼'"></span>
+              </div>
+
+              <!-- Expanded body -->
+              <div x-show="selectedDraft === draft.id" class="border-t border-gray-800/60 px-4 py-4">
+                <pre class="prose-dark text-gray-400 max-h-96 overflow-y-auto mb-4 bg-gray-950/60 rounded-lg p-3" x-text="draft.body"></pre>
+                <div class="flex gap-2 flex-wrap">
+                  <button
+                    @click="approveDraft(draft.id)"
+                    class="px-3 py-1.5 rounded-md text-xs font-medium bg-green-600/20 text-green-300 hover:bg-green-600/40 ring-1 ring-green-600/30 transition-colors"
+                  >Approve & Publish</button>
+                  <button
+                    @click="openRegenerate(draft)"
+                    class="px-3 py-1.5 rounded-md text-xs font-medium bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/40 ring-1 ring-indigo-600/30 transition-colors"
+                  >Regenerate</button>
+                  <button
+                    @click="rejectDraft(draft.id)"
+                    class="px-3 py-1.5 rounded-md text-xs font-medium bg-gray-800 text-gray-400 hover:bg-red-900/30 hover:text-red-400 transition-colors"
+                  >Reject</button>
+                </div>
+              </div>
+
+            </div>
+          </template>
+        </div>
+
+      </section>
+
+
+      <!-- ================================================================
+           TRENDS
+           ================================================================ -->
+      <section x-show="section === 'trends'" class="p-8 max-w-4xl mx-auto">
+
+        <div class="flex items-center justify-between mb-7">
+          <div>
+            <h1 class="text-xl font-semibold">Trend Intelligence</h1>
+            <p class="text-sm text-gray-500 mt-0.5" x-text="trendReport ? `Last analysed ${formatDate(trendReport.created_at)} · Sources: ${(trendReport.sources_used || []).join(', ')}` : 'No trend report yet'"></p>
+          </div>
+          <button
+            @click="runTrendPipeline()"
+            :disabled="pipelines.trends.running"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <span x-show="pipelines.trends.running" class="animate-spin inline-block">⟳</span>
+            <span x-text="pipelines.trends.running ? 'Analysing (~30s)…' : 'Run Analysis Now'"></span>
+          </button>
+        </div>
+
+        <!-- No report -->
+        <div x-show="!loading.trends && !trendReport" class="text-center py-16 text-gray-600">
+          <div class="text-3xl mb-2">📡</div>
+          <div class="text-sm">No trend report yet. Click "Run Analysis Now" to generate one.</div>
+        </div>
+
+        <div x-show="loading.trends" class="text-sm text-gray-600 animate-pulse py-8 text-center">Loading trend report…</div>
+
+        <div x-show="trendReport" class="space-y-6">
+
+          <!-- Summary -->
+          <div class="rounded-xl bg-gray-900 border border-gray-800/60 p-5">
+            <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Today's Summary</div>
+            <p class="text-sm text-gray-300 leading-relaxed" x-text="trendReport?.report?.summary"></p>
+          </div>
+
+          <!-- Competitor gap callout -->
+          <div class="rounded-xl bg-indigo-950/40 border border-indigo-800/40 p-5">
+            <div class="text-xs font-medium text-indigo-400 uppercase tracking-wider mb-2">Competitor Gap — What Amphora Can Own</div>
+            <p class="text-sm text-indigo-200 leading-relaxed" x-text="trendReport?.report?.competitor_gap"></p>
+          </div>
+
+          <!-- Viral angles -->
+          <div>
+            <h2 class="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wider">Viral Angles · Today</h2>
+            <div class="space-y-3">
+              <template x-for="(angle, i) in (trendReport?.report?.viral_angles || [])" :key="i">
+                <div class="rounded-xl bg-gray-900 border border-gray-800/60 p-4">
+                  <div class="flex items-start justify-between gap-4 mb-2">
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                      <span class="text-lg font-bold" :class="viralityColor(angle.virality_score)" x-text="angle.virality_score"></span>
+                      <span class="text-[10px] text-gray-600">/10</span>
+                      <span class="text-[10px] font-medium rounded px-1.5 py-0.5 ml-1" :class="pillarColor(angle.pillar)" x-text="pillarShort(angle.pillar)"></span>
+                    </div>
+                    <div class="flex-1">
+                      <!-- Score bar -->
+                      <div class="h-1 rounded-full bg-gray-800 overflow-hidden">
+                        <div class="h-full rounded-full score-bar"
+                             :class="angle.virality_score >= 9 ? 'bg-green-500' : angle.virality_score >= 7 ? 'bg-yellow-500' : 'bg-gray-600'"
+                             :style="`width: ${angle.virality_score * 10}%`"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="text-sm font-medium text-white mb-2" x-text="angle.hook"></p>
+                  <p class="text-xs text-gray-500 mb-1"><span class="text-gray-600">Why now: </span><span x-text="angle.why_now"></span></p>
+                  <p class="text-xs text-gray-600"><span>Pegged to: </span><span class="text-gray-500 italic" x-text="angle.trending_peg"></span></p>
+                  <button
+                    @click="useAngle(angle)"
+                    class="mt-3 px-2.5 py-1 rounded text-[11px] font-medium bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/40 ring-1 ring-indigo-600/30 transition-colors"
+                  >Use this angle →</button>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Trending topics -->
+          <div>
+            <h2 class="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wider">Trending Topics</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <template x-for="(topic, i) in (trendReport?.report?.trending_topics || [])" :key="i">
+                <div class="rounded-xl bg-gray-900 border border-gray-800/60 p-4">
+                  <div class="flex items-start gap-2 mb-1.5">
+                    <span class="text-[10px] font-medium rounded px-1.5 py-0.5 flex-shrink-0"
+                      :class="topic.momentum === 'high' ? 'bg-green-900/40 text-green-400' :
+                              topic.momentum === 'medium' ? 'bg-yellow-900/40 text-yellow-400' :
+                              'bg-gray-800 text-gray-500'"
+                      x-text="topic.momentum">
+                    </span>
+                    <span class="text-[11px] text-gray-500" x-text="(topic.sources || []).join(' · ')"></span>
+                  </div>
+                  <div class="text-sm font-medium text-gray-200 mb-1" x-text="topic.topic"></div>
+                  <div class="text-xs text-gray-500 mb-1" x-text="topic.amphora_relevance"></div>
+                  <div class="text-xs text-indigo-400 italic" x-text="topic.angle"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Hashtags -->
+          <div>
+            <h2 class="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wider">Recommended Hashtags</h2>
+            <div class="flex flex-wrap gap-2">
+              <template x-for="tag in (trendReport?.report?.recommended_hashtags || [])" :key="tag">
+                <span class="text-xs font-medium rounded-full px-3 py-1 bg-gray-800 text-gray-300 hover:bg-gray-700 cursor-default" x-text="tag"></span>
+              </template>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+
+      <!-- ================================================================
+           PIPELINES
+           ================================================================ -->
+      <section x-show="section === 'pipelines'" class="p-8 max-w-4xl mx-auto">
+
+        <div class="mb-7">
+          <h1 class="text-xl font-semibold">Pipelines</h1>
+          <p class="text-sm text-gray-500 mt-0.5">Manual triggers and status. Automated via GitHub Actions cron.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          <template x-for="pl in pipelineCards" :key="pl.id">
+            <div class="rounded-xl bg-gray-900 border border-gray-800/60 p-5 flex flex-col gap-4">
+              <div>
+                <div class="text-lg mb-1.5" x-text="pl.icon"></div>
+                <div class="text-sm font-medium text-gray-200" x-text="pl.name"></div>
+                <div class="text-xs text-gray-500 mt-0.5 leading-relaxed" x-text="pl.desc"></div>
+              </div>
+              <div class="text-[11px] text-gray-600">
+                <div x-text="pl.schedule"></div>
+                <div x-show="pipelines[pl.id]?.last_started" x-text="`Last run: ${formatDate(pipelines[pl.id]?.last_started)}`"></div>
+              </div>
+              <button
+                @click="pl.action()"
+                :disabled="pipelines[pl.id]?.running"
+                class="mt-auto w-full py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                :class="pipelines[pl.id]?.running
+                  ? 'bg-amber-600/20 text-amber-300 ring-1 ring-amber-600/30'
+                  : 'bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/40 ring-1 ring-indigo-600/30'"
+              >
+                <span x-show="pipelines[pl.id]?.running" class="animate-spin inline-block mr-1">⟳</span>
+                <span x-text="pipelines[pl.id]?.running ? 'Running…' : 'Run Now'"></span>
+              </button>
+            </div>
+          </template>
+        </div>
+
+        <!-- GitHub Actions info -->
+        <div class="rounded-xl bg-gray-900 border border-gray-800/60 p-5">
+          <h2 class="text-sm font-medium mb-3">Automated Schedules</h2>
+          <div class="space-y-2">
+            <div class="flex items-center gap-3 text-sm">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></span>
+              <span class="text-gray-400 w-44 flex-shrink-0">Daily LinkedIn</span>
+              <span class="text-gray-600">9:00 AM PT · <code class="text-gray-500 text-xs">.github/workflows/daily_linkedin.yml</code></span>
+            </div>
+            <div class="flex items-center gap-3 text-sm">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></span>
+              <span class="text-gray-400 w-44 flex-shrink-0">Daily Trend Analysis</span>
+              <span class="text-gray-600">7:00 AM PT · <code class="text-gray-500 text-xs">.github/workflows/daily_trends.yml</code></span>
+            </div>
+            <div class="flex items-center gap-3 text-sm">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></span>
+              <span class="text-gray-400 w-44 flex-shrink-0">Weekly Video</span>
+              <span class="text-gray-600">Mondays 8:00 AM PT · <code class="text-gray-500 text-xs">.github/workflows/weekly_video.yml</code></span>
+            </div>
+            <div class="flex items-center gap-3 text-sm">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0"></span>
+              <span class="text-gray-400 w-44 flex-shrink-0">Research → Blog</span>
+              <span class="text-gray-600">On push to Brain-LLM-Fine-Tuning · <code class="text-gray-500 text-xs">.github/workflows/research_to_blog.yml</code></span>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Regenerate modal -->
+  <div
+    x-show="regenModal"
+    x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="opacity-0"
+    x-transition:enter-end="opacity-100"
+    class="fixed inset-0 bg-black/70 flex items-center justify-center z-40 p-4"
+    @click.self="regenModal = null"
+  >
+    <div class="bg-gray-900 rounded-xl border border-gray-700 p-6 w-full max-w-md">
+      <h3 class="text-sm font-semibold mb-1" x-text="`Regenerate: ${regenModal?.title}`"></h3>
+      <p class="text-xs text-gray-500 mb-4">Optional: give the AI specific instructions for this rewrite.</p>
+      <textarea
+        x-model="regenInstructions"
+        placeholder="e.g. Make it more technical, focus on the Broca's area finding, shorter…"
+        class="w-full h-24 bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 placeholder-gray-700 resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500 mb-4"
+      ></textarea>
+      <div class="flex gap-2 justify-end">
+        <button @click="regenModal = null" class="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors">Cancel</button>
+        <button @click="confirmRegenerate()" class="px-4 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-500 transition-colors">Regenerate</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script>
+    function amphoraApp() {
+      return {
+        section: 'overview',
+
+        stats: { drafts_pending: 0, queue_depth: 0, last_trend_at: null, total_digests: 0 },
+        drafts: [],
+        draftFilter: 'all',
+        selectedDraft: null,
+        queue: [],
+        selectedPost: null,
+        trendReport: null,
+
+        loading: { stats: false, drafts: false, queue: false, trends: false },
+
+        pipelines: {
+          run:      { running: false, last_started: null },
+          linkedin: { running: false, last_started: null },
+          trends:   { running: false, last_started: null },
+        },
+
+        toast: null,
+        _toastTimer: null,
+
+        regenModal: null,
+        regenInstructions: '',
+
+        // ---- computed -------------------------------------------------
+
+        get anyPipelineRunning() {
+          return Object.values(this.pipelines).some(p => p.running);
+        },
+
+        get filteredDrafts() {
+          if (this.draftFilter === 'all') return this.drafts;
+          return this.drafts.filter(d => d.content_type === this.draftFilter);
+        },
+
+        // ---- nav config -----------------------------------------------
+
+        navItems: [
+          { id: 'overview',  icon: '⬡',  label: 'Overview',   badge: null },
+          { id: 'queue',     icon: '📅', label: 'LinkedIn Queue', badge: null },
+          { id: 'drafts',    icon: '📝', label: 'Drafts',      badge: null },
+          { id: 'trends',    icon: '📈', label: 'Trends',      badge: null },
+          { id: 'pipelines', icon: '⚙️', label: 'Pipelines',   badge: null },
+        ],
+
+        draftTabs: [
+          { value: 'all',          label: 'All' },
+          { value: 'blog',         label: 'Blog' },
+          { value: 'video_script', label: 'Video' },
+        ],
+
+        pipelineCards: [],   // populated in init
+
+        roadmapFeatures: [
+          { icon: '📡', title: 'Trend Intelligence', status: 'live',     desc: 'Scrapes HN, Reddit, ArXiv, X daily to surface viral angles tuned to Amphora.' },
+          { icon: '🧪', title: 'A/B Post Testing',   status: 'idea',     desc: 'Generate 2 hook variants, auto-pick the winner after 24h based on LinkedIn engagement.' },
+          { icon: '📊', title: 'Engagement Analytics', status: 'idea',   desc: 'Import LinkedIn post metrics and surface which pillars and hooks get the most traction.' },
+          { icon: '♻️', title: 'Content Repurposing',  status: 'idea',   desc: 'Blog → Twitter thread, newsletter section, YouTube script — auto-cut for each platform.' },
+          { icon: '🔍', title: 'SEO Optimizer',        status: 'idea',   desc: 'Run every blog through an SEO agent (keywords, meta, alt text) before publishing.' },
+          { icon: '🕵️', title: 'Competitor Monitor',  status: 'idea',   desc: 'Track Cohere, Mistral, Inflection, etc. daily — summarise what they\'re posting and identify gaps.' },
+          { icon: '🕐', title: 'Smart Scheduling',     status: 'idea',   desc: 'Predict optimal posting windows using historical engagement data from LinkedIn analytics.' },
+          { icon: '💬', title: 'Comment Assistant',    status: 'idea',   desc: 'Draft context-aware responses to top comments on published posts to boost reach.' },
+          { icon: '📧', title: 'Investor Updates',     status: 'idea',   desc: 'Auto-generate a monthly email digest for investors from experiment results.' },
+          { icon: '🖼️', title: 'Visual Generator',    status: 'idea',   desc: 'Auto-create data viz images from experiment metrics for every blog/post using matplotlib.' },
+          { icon: '📣', title: 'Cross-Platform',       status: 'idea',   desc: 'Auto-post to X/Twitter threads, HN "Show HN", and r/MachineLearning with platform-tuned copy.' },
+          { icon: '⭐', title: 'Content Scoring',      status: 'idea',   desc: 'Score every generated piece on virality, clarity, accuracy, and brand fit before it hits Supabase.' },
+        ],
+
+        statCards: [],   // populated in init
+
+        // ---- init -----------------------------------------------------
+
+        async init() {
+          const self = this;
+
+          this.navItems.forEach(item => {
+            if (item.id === 'queue') {
+              item.badge = () => self.stats.queue_depth;
+            } else if (item.id === 'drafts') {
+              item.badge = () => self.stats.drafts_pending;
+            }
+          });
+
+          this.statCards = [
+            { label: 'Drafts Pending',   value: () => self.stats.drafts_pending,  sub: () => 'awaiting review' },
+            { label: 'Queue Depth',      value: () => self.stats.queue_depth,     sub: () => 'posts scheduled' },
+            { label: 'Experiments',      value: () => self.stats.total_digests,   sub: () => 'digested' },
+            { label: 'Trend Analysis',   value: () => self.stats.last_trend_at ? 'Fresh' : 'None', sub: () => self.stats.last_trend_at ? self.formatDate(self.stats.last_trend_at) : 'Run pipeline' },
+          ];
+
+          this.pipelineCards = [
+            {
+              id: 'run', icon: '🚀', name: 'Full Pipeline',
+              desc: 'Fetch new experiments → blog → LinkedIn queue → video script.',
+              schedule: 'Triggered: on new EXPERIMENT*.md push',
+              action: () => self.runPipeline('run'),
+            },
+            {
+              id: 'linkedin', icon: '💼', name: 'Daily LinkedIn',
+              desc: 'Post the next queued item. Falls back to fresh generation if queue is empty.',
+              schedule: 'Scheduled: 9:00 AM PT daily',
+              action: () => self.runPipeline('linkedin'),
+            },
+            {
+              id: 'trends', icon: '📡', name: 'Trend Analysis',
+              desc: 'Scrape HN, Reddit, ArXiv, X and generate today\'s viral angles.',
+              schedule: 'Scheduled: 7:00 AM PT daily',
+              action: () => self.runTrendPipeline(),
+            },
+          ];
+
+          await this.loadStats();
+          this.loadQueue();
+          this.loadDrafts();
+        },
+
+        // ---- navigation -----------------------------------------------
+
+        async navigate(id) {
+          this.section = id;
+          if (id === 'trends' && !this.trendReport && !this.loading.trends) await this.loadTrends();
+        },
+
+        // ---- data loaders ---------------------------------------------
+
+        async loadStats() {
+          this.loading.stats = true;
+          try {
+            const r = await fetch('/api/stats');
+            if (r.ok) this.stats = await r.json();
+          } catch {}
+          this.loading.stats = false;
+        },
+
+        async loadDrafts() {
+          this.loading.drafts = true;
+          try {
+            const r = await fetch('/api/drafts');
+            if (r.ok) this.drafts = await r.json();
+          } catch { this.showToast('Failed to load drafts', 'error'); }
+          this.loading.drafts = false;
+        },
+
+        async loadQueue() {
+          this.loading.queue = true;
+          try {
+            const r = await fetch('/api/queue');
+            if (r.ok) this.queue = await r.json();
+          } catch { this.showToast('Failed to load queue', 'error'); }
+          this.loading.queue = false;
+        },
+
+        async loadTrends() {
+          this.loading.trends = true;
+          try {
+            const r = await fetch('/api/trends');
+            if (r.ok) this.trendReport = await r.json();
+          } catch {}
+          this.loading.trends = false;
+        },
+
+        // ---- actions --------------------------------------------------
+
+        async approveDraft(id) {
+          const r = await fetch(`/api/drafts/${id}/approve`, { method: 'POST' });
+          if (r.ok) {
+            this.drafts = this.drafts.filter(d => d.id !== id);
+            this.selectedDraft = null;
+            this.stats.drafts_pending = Math.max(0, this.stats.drafts_pending - 1);
+            this.showToast('Draft approved and marked as published');
+          } else {
+            this.showToast('Failed to approve draft', 'error');
+          }
+        },
+
+        async rejectDraft(id) {
+          const r = await fetch(`/api/drafts/${id}/reject`, { method: 'POST' });
+          if (r.ok) {
+            this.drafts = this.drafts.filter(d => d.id !== id);
+            this.selectedDraft = null;
+            this.stats.drafts_pending = Math.max(0, this.stats.drafts_pending - 1);
+            this.showToast('Draft rejected and deleted');
+          } else {
+            this.showToast('Failed to reject draft', 'error');
+          }
+        },
+
+        openRegenerate(draft) {
+          this.regenModal = draft;
+          this.regenInstructions = '';
+        },
+
+        async confirmRegenerate() {
+          const draft = this.regenModal;
+          this.regenModal = null;
+          const r = await fetch(`/api/drafts/${draft.id}/regenerate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ instructions: this.regenInstructions }),
+          });
+          if (r.ok) {
+            this.drafts = this.drafts.filter(d => d.id !== draft.id);
+            this.selectedDraft = null;
+            this.showToast('Regenerating… new draft will appear shortly');
+            setTimeout(() => this.loadDrafts(), 20000);
+          } else {
+            this.showToast('Failed to start regeneration', 'error');
+          }
+        },
+
+        async postNow(id) {
+          const r = await fetch(`/api/queue/${id}/approve`, { method: 'POST' });
+          if (r.ok) {
+            this.queue = this.queue.filter(q => q.id !== id);
+            this.selectedPost = null;
+            this.stats.queue_depth = Math.max(0, this.stats.queue_depth - 1);
+            this.showToast('Post sent to LinkedIn!');
+          } else {
+            const err = await r.json().catch(() => ({}));
+            this.showToast(err.detail || 'Failed to post to LinkedIn', 'error');
+          }
+        },
+
+        async skipPost(id) {
+          const r = await fetch(`/api/queue/${id}/skip`, { method: 'POST' });
+          if (r.ok) {
+            this.queue = this.queue.filter(q => q.id !== id);
+            this.selectedPost = null;
+            this.stats.queue_depth = Math.max(0, this.stats.queue_depth - 1);
+            this.showToast('Post skipped');
+          } else {
+            this.showToast('Failed to skip post', 'error');
+          }
+        },
+
+        async runPipeline(name) {
+          this.pipelines[name].running = true;
+          this.pipelines[name].last_started = new Date().toISOString();
+          try {
+            const r = await fetch(`/api/pipeline/${name}`, { method: 'POST' });
+            if (r.ok) {
+              this.showToast(`Pipeline started — running in background`);
+            } else {
+              const err = await r.json().catch(() => ({}));
+              this.showToast(err.detail || 'Failed to start pipeline', 'error');
+              this.pipelines[name].running = false;
+            }
+          } catch {
+            this.showToast('Failed to start pipeline', 'error');
+            this.pipelines[name].running = false;
+          }
+        },
+
+        async runTrendPipeline() {
+          this.pipelines.trends.running = true;
+          this.pipelines.trends.last_started = new Date().toISOString();
+          try {
+            const r = await fetch('/api/pipeline/trends', { method: 'POST' });
+            if (r.ok) {
+              this.showToast('Trend analysis started — takes ~30s');
+              setTimeout(async () => {
+                await this.loadTrends();
+                await this.loadStats();
+                this.pipelines.trends.running = false;
+              }, 35000);
+            } else {
+              this.showToast('Failed to start trend analysis', 'error');
+              this.pipelines.trends.running = false;
+            }
+          } catch {
+            this.showToast('Failed to start trend analysis', 'error');
+            this.pipelines.trends.running = false;
+          }
+        },
+
+        useAngle(angle) {
+          this.showToast(`Angle queued for next LinkedIn generation`);
+          // Future: actually inject this angle into the LinkedIn agent generation call
+        },
+
+        // ---- helpers --------------------------------------------------
+
+        showToast(msg, type = 'success') {
+          if (this._toastTimer) clearTimeout(this._toastTimer);
+          this.toast = { msg, type };
+          this._toastTimer = setTimeout(() => { this.toast = null; }, 4000);
+        },
+
+        greeting() {
+          const h = new Date().getHours();
+          if (h < 12) return 'morning';
+          if (h < 17) return 'afternoon';
+          return 'evening';
+        },
+
+        pillarColor(pillar) {
+          const m = {
+            research_insight:  'bg-blue-500/20 text-blue-300 ring-1 ring-blue-500/30',
+            behind_the_scenes: 'bg-purple-500/20 text-purple-300 ring-1 ring-purple-500/30',
+            vision:            'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/30',
+          };
+          return m[pillar] || 'bg-gray-700 text-gray-400';
+        },
+
+        pillarLabel(pillar) {
+          const m = { research_insight: 'Research Insight', behind_the_scenes: 'Behind the Science', vision: 'Vision' };
+          return m[pillar] || pillar;
+        },
+
+        pillarShort(pillar) {
+          const m = { research_insight: 'Research', behind_the_scenes: 'Behind', vision: 'Vision' };
+          return m[pillar] || pillar;
+        },
+
+        typeColor(type) {
+          const m = {
+            blog:             'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/30',
+            video_script:     'bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/30',
+            research_digest:  'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/30',
+          };
+          return m[type] || 'bg-gray-700 text-gray-400';
+        },
+
+        typeLabel(type) {
+          const m = { blog: 'Blog', video_script: 'Video Script', research_digest: 'Research Digest' };
+          return m[type] || type;
+        },
+
+        typeShort(type) {
+          const m = { blog: 'Blog', video_script: 'Video', research_digest: 'Research' };
+          return m[type] || type;
+        },
+
+        viralityColor(score) {
+          if (score >= 9) return 'text-green-400';
+          if (score >= 7) return 'text-yellow-400';
+          return 'text-gray-500';
+        },
+
+        formatDate(iso) {
+          if (!iso) return '—';
+          return new Date(iso).toLocaleString('en-US', {
+            month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+          });
+        },
+
+        truncate(text, n = 120) {
+          if (!text) return '';
+          return text.length > n ? text.slice(0, n) + '…' : text;
+        },
+      };
+    }
+  </script>
+</body>
+</html>

@@ -142,3 +142,81 @@ def list_research_digests() -> list[dict]:
         .execute()
         .data
     )
+
+
+# ---------------------------------------------------------------------------
+# Extended content queue helpers
+# ---------------------------------------------------------------------------
+
+def list_queued_posts() -> list[dict]:
+    """All posts with status='queued', oldest first."""
+    return (
+        _client()
+        .table("content_queue")
+        .select("*")
+        .eq("status", "queued")
+        .order("created_at")
+        .execute()
+        .data
+    )
+
+
+def get_queue_item(queue_id: str) -> dict | None:
+    result = (
+        _client()
+        .table("content_queue")
+        .select("*")
+        .eq("id", queue_id)
+        .limit(1)
+        .execute()
+    )
+    return result.data[0] if result.data else None
+
+
+def skip_queue_item(queue_id: str) -> None:
+    _client().table("content_queue").update({"status": "skipped"}).eq("id", queue_id).execute()
+
+
+def delete_draft(item_id: str) -> None:
+    _client().table("content_items").delete().eq("id", item_id).execute()
+
+
+# ---------------------------------------------------------------------------
+# Trend reports
+# ---------------------------------------------------------------------------
+
+def save_trend_report(report: dict, sources_used: list[str]) -> str:
+    result = _client().table("trend_reports").insert({
+        "report":       json.dumps(report),
+        "sources_used": sources_used,
+        "created_at":   datetime.now(timezone.utc).isoformat(),
+    }).execute()
+    return result.data[0]["id"]
+
+
+def get_latest_trend_report() -> dict | None:
+    result = (
+        _client()
+        .table("trend_reports")
+        .select("*")
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    if not result.data:
+        return None
+    row = result.data[0]
+    row["report"] = json.loads(row["report"]) if isinstance(row["report"], str) else row["report"]
+    return row
+
+
+def list_trend_reports(limit: int = 10) -> list[dict]:
+    result = (
+        _client()
+        .table("trend_reports")
+        .select("id, sources_used, created_at")
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return result.data
