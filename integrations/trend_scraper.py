@@ -80,7 +80,7 @@ _ARXIV_QUERY = "cat:cs.AI OR cat:cs.LG OR cat:cs.CL OR cat:q-bio.NC"
 def fetch_arxiv_recent(n: int = 15) -> list[dict]:
     try:
         r = httpx.get(
-            "http://export.arxiv.org/api/query",
+            "https://export.arxiv.org/api/query",
             params={
                 "search_query": _ARXIV_QUERY,
                 "sortBy":       "submittedDate",
@@ -88,6 +88,7 @@ def fetch_arxiv_recent(n: int = 15) -> list[dict]:
                 "max_results":  n,
             },
             timeout=_TIMEOUT,
+            follow_redirects=True,
         )
         r.raise_for_status()
         ns   = {"atom": "http://www.w3.org/2005/Atom"}
