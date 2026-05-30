@@ -1,0 +1,39 @@
+name: Research → Blog + Queue
+
+on:
+  # Trigger when a new EXPERIMENT*.md is pushed to Brain-LLM-Fine-Tuning
+  # via repository_dispatch from that repo (see README for setup)
+  repository_dispatch:
+    types: [new_experiment]
+
+  # Also run weekly as a catch-all
+  schedule:
+    - cron: '0 10 * * 1'   # Monday 10 AM UTC
+
+  workflow_dispatch:
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run research → blog pipeline
+        env:
+          ANTHROPIC_API_KEY:          ${{ secrets.ANTHROPIC_API_KEY }}
+          LINKEDIN_ACCESS_TOKEN:      ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          LINKEDIN_PERSON_URN:        ${{ secrets.LINKEDIN_PERSON_URN }}
+          SUPABASE_URL:               ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY:  ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GITHUB_TOKEN:               ${{ secrets.GH_PAT }}
+          BRAIN_LLM_REPO:             Shaunakm07/Brain-LLM-Fine-Tuning
+          HIGGSFIELD_API_KEY:         ${{ secrets.HIGGSFIELD_API_KEY }}
+        run: python -m pipelines.research_to_blog
