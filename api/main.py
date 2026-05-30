@@ -21,6 +21,11 @@ log = logging.getLogger(__name__)
 
 app = FastAPI(title="Amphora Marketing Ops", version="1.0.0")
 
+# On Vercel, background tasks are killed immediately after the HTTP response,
+# so pipeline triggers dispatch GitHub Actions workflow_dispatch events instead.
+_ON_VERCEL = bool(os.getenv("VERCEL"))
+_MARKETING_REPO = os.getenv("MARKETING_REPO", "Shaunakm07/automatic-marketing")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -275,13 +280,37 @@ def _set_running(name: str, flag: bool):
         _pipeline_status[name]["last_started"] = datetime.now(timezone.utc).isoformat()
 
 
+def _dispatch_github_workflow(workflow_file: str) -> dict:
+    """Trigger a GitHub Actions workflow_dispatch event (used when running on Vercel)."""
+    import httpx as _httpx
+    token = os.getenv("GITHUB_TOKEN", "")
+    if not token:
+        raise HTTPException(500, "GITHUB_TOKEN not set — cannot trigger workflow")
+    r = _httpx.post(
+        f"https://api.github.com/repos/{_MARKETING_REPO}/actions/workflows/{workflow_file}/dispatches",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+        json={"ref": "main"},
+        timeout=15,
+    )
+    if r.status_code == 204:
+        return {"status": "triggered", "mode": "github_actions", "workflow": workflow_file}
+    raise HTTPException(r.status_code, f"GitHub API: {r.text}")
+
+
 @app.get("/api/pipeline/status")
 async def pipeline_status():
-    return _pipeline_status
+    return {**_pipeline_status, "mode": "github_actions" if _ON_VERCEL else "local"}
 
 
 @app.post("/api/pipeline/run")
 async def run_full_pipeline(background_tasks: BackgroundTasks):
+    if _ON_VERCEL:
+        return _dispatch_github_workflow("research_to_blog.yml")
+
     if _pipeline_status["run"]["running"]:
         raise HTTPException(409, "Full pipeline already running")
 
@@ -299,6 +328,9 @@ async def run_full_pipeline(background_tasks: BackgroundTasks):
 
 @app.post("/api/pipeline/linkedin")
 async def run_linkedin_pipeline(background_tasks: BackgroundTasks):
+    if _ON_VERCEL:
+        return _dispatch_github_workflow("daily_linkedin.yml")
+
     if _pipeline_status["linkedin"]["running"]:
         raise HTTPException(409, "LinkedIn pipeline already running")
 
@@ -316,6 +348,9 @@ async def run_linkedin_pipeline(background_tasks: BackgroundTasks):
 
 @app.post("/api/pipeline/trends")
 async def run_trends_pipeline(background_tasks: BackgroundTasks):
+    if _ON_VERCEL:
+        return _dispatch_github_workflow("daily_trends.yml")
+
     if _pipeline_status["trends"]["running"]:
         raise HTTPException(409, "Trend pipeline already running")
 
