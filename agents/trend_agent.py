@@ -21,9 +21,10 @@ You are Amphora's growth strategist and viral content analyst.
 Brand voice:
 {BRAND_VOICE}
 
-Your job: given today's trending content across HN, Reddit, ArXiv, and Twitter,
-identify which themes are gaining momentum, assess their relevance to Amphora,
-and produce specific viral content angles Amphora can ride TODAY.
+Your job: given today's trending content across HN, Reddit, ArXiv, HuggingFace Daily Papers,
+BioRxiv, Bluesky, Lobste.rs, and Twitter, identify which themes are gaining momentum,
+assess their relevance to Amphora, and produce specific viral content angles Amphora
+can ride TODAY.
 
 Rules:
 - Be specific — name the actual paper, thread, or event. No vague categories.
@@ -51,16 +52,24 @@ def analyse_trends(raw: dict) -> dict:
     def _titles(items: list[dict], limit: int) -> str:
         return "\n".join(f"  - {i['title']}" for i in items[:limit] if i.get("title"))
 
-    hn_block      = _titles(raw.get("hn",      []), 18)
-    reddit_block  = _titles(raw.get("reddit",  []), 18)
-    arxiv_block   = _titles(raw.get("arxiv",   []), 12)
-    twitter_block = _titles(raw.get("twitter", []),  8)
+    hn_block       = _titles(raw.get("hn",       []), 18)
+    reddit_block   = _titles(raw.get("reddit",   []), 18)
+    arxiv_block    = _titles(raw.get("arxiv",    []), 12)
+    hf_block       = _titles(raw.get("hf",       []), 10)
+    biorxiv_block  = _titles(raw.get("biorxiv",  []),  8)
+    bluesky_block  = _titles(raw.get("bluesky",  []),  8)
+    lobsters_block = _titles(raw.get("lobsters", []), 10)
+    twitter_block  = _titles(raw.get("twitter",  []),  8)
 
     sections = [
-        f"HACKER NEWS TOP STORIES:\n{hn_block}"     if hn_block      else "",
-        f"TOP REDDIT AI/ML POSTS:\n{reddit_block}"  if reddit_block  else "",
-        f"RECENT ARXIV PAPERS:\n{arxiv_block}"      if arxiv_block   else "",
-        f"TRENDING AI TWEETS:\n{twitter_block}"      if twitter_block else "",
+        f"HACKER NEWS TOP STORIES:\n{hn_block}"            if hn_block       else "",
+        f"TOP REDDIT AI/ML POSTS:\n{reddit_block}"         if reddit_block   else "",
+        f"RECENT ARXIV PAPERS:\n{arxiv_block}"             if arxiv_block    else "",
+        f"TRENDING ML PAPERS (HuggingFace Daily):\n{hf_block}"  if hf_block  else "",
+        f"BIORXIV NEUROSCIENCE PREPRINTS:\n{biorxiv_block}" if biorxiv_block else "",
+        f"BLUESKY AI COMMUNITY:\n{bluesky_block}"          if bluesky_block  else "",
+        f"LOBSTERS HOT STORIES:\n{lobsters_block}"         if lobsters_block else "",
+        f"TRENDING AI TWEETS:\n{twitter_block}"             if twitter_block  else "",
     ]
     data_block = "\n\n".join(s for s in sections if s)
 

@@ -34,6 +34,10 @@ def run(dry_run: bool = False) -> dict:
         f"      Items: {len(raw['hn'])} HN | "
         f"{len(raw['reddit'])} Reddit | "
         f"{len(raw['arxiv'])} ArXiv | "
+        f"{len(raw['hf'])} HF | "
+        f"{len(raw['biorxiv'])} BioRxiv | "
+        f"{len(raw['bluesky'])} Bluesky | "
+        f"{len(raw['lobsters'])} Lobsters | "
         f"{len(raw['twitter'])} X"
     )
 
