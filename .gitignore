@@ -10,3 +10,5 @@ build/
 *.egg-info/
 output/
 drafts/*.html
+.vercel
+.agents/
