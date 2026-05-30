@@ -1,0 +1,40 @@
+name: Regenerate Draft
+
+on:
+  workflow_dispatch:
+    inputs:
+      item_id:
+        description: 'Draft ID to regenerate'
+        required: true
+        type: string
+      instructions:
+        description: 'Additional rewrite instructions'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Regenerate draft
+        env:
+          ANTHROPIC_API_KEY:         ${{ secrets.ANTHROPIC_API_KEY }}
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          REGEN_ITEM_ID:             ${{ inputs.item_id }}
+          REGEN_INSTRUCTIONS:        ${{ inputs.instructions }}
+        run: python scripts/regenerate_draft.py
