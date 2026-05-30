@@ -12,7 +12,7 @@ from typing import Optional
 import httpx
 
 _REDDIT_UA = {"User-Agent": "AmphoraMarketingBot/1.0 (research; contact shaunak@amphorabrain.com)"}
-_TIMEOUT = 12
+_TIMEOUT = 20
 
 
 # ---------------------------------------------------------------------------
