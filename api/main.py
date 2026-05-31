@@ -270,9 +270,10 @@ async def trends_history():
 # ---------------------------------------------------------------------------
 
 _pipeline_status: dict[str, dict] = {
-    "run":      {"running": False, "last_started": None},
-    "linkedin": {"running": False, "last_started": None},
-    "trends":   {"running": False, "last_started": None},
+    "run":       {"running": False, "last_started": None},
+    "linkedin":  {"running": False, "last_started": None},
+    "trends":    {"running": False, "last_started": None},
+    "slideshow": {"running": False, "last_started": None},
 }
 
 
@@ -369,3 +370,23 @@ async def run_trends_pipeline(background_tasks: BackgroundTasks):
 
     background_tasks.add_task(_run)
     return {"status": "started", "pipeline": "trends"}
+
+
+@app.post("/api/pipeline/slideshow")
+async def run_slideshow_pipeline(background_tasks: BackgroundTasks):
+    if _ON_VERCEL:
+        return _dispatch_github_workflow("daily_slideshow.yml")
+
+    if _pipeline_status["slideshow"]["running"]:
+        raise HTTPException(409, "Slideshow pipeline already running")
+
+    def _run():
+        _set_running("slideshow", True)
+        try:
+            from pipelines import daily_slideshow
+            daily_slideshow.run()
+        finally:
+            _set_running("slideshow", False)
+
+    background_tasks.add_task(_run)
+    return {"status": "started", "pipeline": "slideshow"}
