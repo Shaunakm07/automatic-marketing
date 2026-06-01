@@ -124,45 +124,22 @@
           </template>
         </div>
 
-        <!-- Two columns: queue preview + drafts preview -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-          <!-- Queue preview -->
-          <div class="rounded-xl bg-gray-900 border border-gray-800/60 overflow-hidden">
-            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800/60">
-              <h2 class="text-sm font-medium">LinkedIn Queue</h2>
-              <button @click="navigate('queue')" class="text-xs text-indigo-400 hover:text-indigo-300">View all →</button>
-            </div>
-            <div x-show="loading.queue" class="p-4 text-sm text-gray-600 animate-pulse">Loading…</div>
-            <div x-show="!loading.queue && queue.length === 0" class="p-4 text-sm text-gray-600">Queue is empty.</div>
-            <div class="divide-y divide-gray-800/40">
-              <template x-for="post in queue.slice(0, 3)" :key="post.id">
-                <div class="px-4 py-3">
-                  <span class="text-[10px] font-medium rounded px-1.5 py-0.5 mr-2" :class="pillarColor(post.pillar)" x-text="pillarShort(post.pillar)"></span>
-                  <span class="text-sm text-gray-300" x-text="truncate(post.post_text, 90)"></span>
-                </div>
-              </template>
-            </div>
+        <!-- Drafts preview -->
+        <div class="rounded-xl bg-gray-900 border border-gray-800/60 overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800/60">
+            <h2 class="text-sm font-medium">Pending Drafts</h2>
+            <button @click="navigate('drafts')" class="text-xs text-indigo-400 hover:text-indigo-300">View all →</button>
           </div>
-
-          <!-- Drafts preview -->
-          <div class="rounded-xl bg-gray-900 border border-gray-800/60 overflow-hidden">
-            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800/60">
-              <h2 class="text-sm font-medium">Pending Drafts</h2>
-              <button @click="navigate('drafts')" class="text-xs text-indigo-400 hover:text-indigo-300">View all →</button>
-            </div>
-            <div x-show="loading.drafts" class="p-4 text-sm text-gray-600 animate-pulse">Loading…</div>
-            <div x-show="!loading.drafts && drafts.length === 0" class="p-4 text-sm text-gray-600">No drafts pending.</div>
-            <div class="divide-y divide-gray-800/40">
-              <template x-for="draft in drafts.slice(0, 3)" :key="draft.id">
-                <div class="px-4 py-3 flex items-start gap-3">
-                  <span class="text-[10px] font-medium rounded px-1.5 py-0.5 mt-0.5 flex-shrink-0" :class="typeColor(draft.content_type)" x-text="typeShort(draft.content_type)"></span>
-                  <span class="text-sm text-gray-300 line-clamp-2" x-text="draft.title"></span>
-                </div>
-              </template>
-            </div>
+          <div x-show="loading.drafts" class="p-4 text-sm text-gray-600 animate-pulse">Loading…</div>
+          <div x-show="!loading.drafts && drafts.length === 0" class="p-4 text-sm text-gray-600">No drafts pending.</div>
+          <div class="divide-y divide-gray-800/40">
+            <template x-for="draft in drafts.slice(0, 5)" :key="draft.id">
+              <div class="px-4 py-3 flex items-start gap-3">
+                <span class="text-[10px] font-medium rounded px-1.5 py-0.5 mt-0.5 flex-shrink-0" :class="typeColor(draft.content_type)" x-text="typeShort(draft.content_type)"></span>
+                <span class="text-sm text-gray-300 line-clamp-2" x-text="draft.title"></span>
+              </div>
+            </template>
           </div>
-
         </div>
 
         <!-- Feature roadmap -->
@@ -190,71 +167,6 @@
               </div>
             </template>
           </div>
-        </div>
-
-      </section>
-
-
-      <!-- ================================================================
-           LINKEDIN QUEUE
-           ================================================================ -->
-      <section x-show="section === 'queue'" class="p-8 max-w-4xl mx-auto">
-
-        <div class="flex items-center justify-between mb-7">
-          <div>
-            <h1 class="text-xl font-semibold">LinkedIn Queue</h1>
-            <p class="text-sm text-gray-500 mt-0.5">Posts scheduled to publish daily at 9 AM PT</p>
-          </div>
-          <button
-            @click="runPipeline('linkedin')"
-            :disabled="pipelines.linkedin.running"
-            class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <span x-show="pipelines.linkedin.running" class="animate-spin">⟳</span>
-            <span x-text="pipelines.linkedin.running ? 'Posting…' : 'Post Next Now'"></span>
-          </button>
-        </div>
-
-        <div x-show="loading.queue" class="text-sm text-gray-600 animate-pulse py-8 text-center">Loading queue…</div>
-
-        <div x-show="!loading.queue && queue.length === 0" class="text-center py-16 text-gray-600">
-          <div class="text-3xl mb-2">📭</div>
-          <div class="text-sm">Queue is empty. Run the full pipeline to generate posts.</div>
-        </div>
-
-        <div class="space-y-3">
-          <template x-for="(post, i) in queue" :key="post.id">
-            <div class="rounded-xl bg-gray-900 border border-gray-800/60 overflow-hidden">
-
-              <!-- Header row -->
-              <div
-                class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-800/40 transition-colors"
-                @click="selectedPost = selectedPost === post.id ? null : post.id"
-              >
-                <span class="text-xs text-gray-600 font-mono w-5 flex-shrink-0" x-text="i+1"></span>
-                <span class="text-[10px] font-medium rounded px-1.5 py-0.5 flex-shrink-0" :class="pillarColor(post.pillar)" x-text="pillarLabel(post.pillar)"></span>
-                <span class="text-sm text-gray-300 flex-1 min-w-0 truncate" x-text="truncate(post.post_text, 110)"></span>
-                <span class="text-[11px] text-gray-600 flex-shrink-0" x-text="formatDate(post.created_at)"></span>
-                <span class="text-gray-600 text-xs flex-shrink-0" x-text="selectedPost === post.id ? '▲' : '▼'"></span>
-              </div>
-
-              <!-- Expanded -->
-              <div x-show="selectedPost === post.id" class="border-t border-gray-800/60 px-4 py-4">
-                <pre class="prose-dark text-gray-300 mb-4" x-text="post.post_text"></pre>
-                <div class="flex gap-2">
-                  <button
-                    @click="postNow(post.id)"
-                    class="px-3 py-1.5 rounded-md text-xs font-medium bg-green-600/20 text-green-300 hover:bg-green-600/40 ring-1 ring-green-600/30 transition-colors"
-                  >Post to LinkedIn now</button>
-                  <button
-                    @click="skipPost(post.id)"
-                    class="px-3 py-1.5 rounded-md text-xs font-medium bg-gray-800 text-gray-400 hover:bg-gray-700 transition-colors"
-                  >Skip</button>
-                </div>
-              </div>
-
-            </div>
-          </template>
         </div>
 
       </section>
@@ -515,11 +427,6 @@
           <div class="space-y-2">
             <div class="flex items-center gap-3 text-sm">
               <span class="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></span>
-              <span class="text-gray-400 w-44 flex-shrink-0">Daily LinkedIn</span>
-              <span class="text-gray-600">9:00 AM PT · <code class="text-gray-500 text-xs">.github/workflows/daily_linkedin.yml</code></span>
-            </div>
-            <div class="flex items-center gap-3 text-sm">
-              <span class="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></span>
               <span class="text-gray-400 w-44 flex-shrink-0">Daily Trend Analysis</span>
               <span class="text-gray-600">7:00 AM PT · <code class="text-gray-500 text-xs">.github/workflows/daily_trends.yml</code></span>
             </div>
@@ -576,19 +483,16 @@
       return {
         section: 'overview',
 
-        stats: { drafts_pending: 0, queue_depth: 0, last_trend_at: null, total_digests: 0 },
+        stats: { drafts_pending: 0, total_slideshows: 0, last_trend_at: null, total_digests: 0 },
         drafts: [],
         draftFilter: 'all',
         selectedDraft: null,
-        queue: [],
-        selectedPost: null,
         trendReport: null,
 
-        loading: { stats: false, drafts: false, queue: false, trends: false },
+        loading: { stats: false, drafts: false, trends: false },
 
         pipelines: {
           run:       { running: false, last_started: null },
-          linkedin:  { running: false, last_started: null },
           trends:    { running: false, last_started: null },
           slideshow: { running: false, last_started: null },
         },
@@ -614,7 +518,6 @@
 
         navItems: [
           { id: 'overview',  icon: '⬡',  label: 'Overview',   badge: null },
-          { id: 'queue',     icon: '📅', label: 'LinkedIn Queue', badge: null },
           { id: 'drafts',    icon: '📝', label: 'Drafts',      badge: null },
           { id: 'trends',    icon: '📈', label: 'Trends',      badge: null },
           { id: 'pipelines', icon: '⚙️', label: 'Pipelines',   badge: null },
@@ -630,10 +533,11 @@
         pipelineCards: [],   // populated in init
 
         roadmapFeatures: [
-          { icon: '📡', title: 'Trend Intelligence', status: 'live',     desc: 'Scrapes HN, Reddit, ArXiv, X daily to surface viral angles tuned to Amphora.' },
-          { icon: '🧪', title: 'A/B Post Testing',   status: 'idea',     desc: 'Generate 2 hook variants, auto-pick the winner after 24h based on LinkedIn engagement.' },
-          { icon: '📊', title: 'Engagement Analytics', status: 'idea',   desc: 'Import LinkedIn post metrics and surface which pillars and hooks get the most traction.' },
-          { icon: '♻️', title: 'Content Repurposing',  status: 'idea',   desc: 'Blog → Twitter thread, newsletter section, YouTube script — auto-cut for each platform.' },
+          { icon: '📡', title: 'Trend Intelligence', status: 'live',     desc: 'Scrapes HN, ArXiv, HuggingFace, BioRxiv, Bluesky, Lobste.rs daily.' },
+          { icon: '🖼️', title: 'AI Slideshow',        status: 'live',     desc: '7-slide carousel with FLUX-generated punk zine backgrounds, daily from trends.' },
+          { icon: '🧪', title: 'A/B Carousel Testing', status: 'idea',    desc: 'Generate 2 hook variants for slide 1, pick the winner after 48h based on engagement.' },
+          { icon: '📊', title: 'Engagement Analytics', status: 'idea',   desc: 'Track which slide hooks get the most saves and shares; feed back into the agent.' },
+          { icon: '♻️', title: 'Content Repurposing',  status: 'idea',   desc: 'Blog → newsletter section, YouTube script — auto-cut for each platform.' },
           { icon: '🔍', title: 'SEO Optimizer',        status: 'idea',   desc: 'Run every blog through an SEO agent (keywords, meta, alt text) before publishing.' },
           { icon: '🕵️', title: 'Competitor Monitor',  status: 'idea',   desc: 'Track Cohere, Mistral, Inflection, etc. daily — summarise what they\'re posting and identify gaps.' },
           { icon: '🕐', title: 'Smart Scheduling',     status: 'idea',   desc: 'Predict optimal posting windows using historical engagement data from LinkedIn analytics.' },
@@ -652,49 +556,38 @@
           const self = this;
 
           this.navItems.forEach(item => {
-            if (item.id === 'queue') {
-              item.badge = () => self.stats.queue_depth;
-            } else if (item.id === 'drafts') {
-              item.badge = () => self.stats.drafts_pending;
-            }
+            if (item.id === 'drafts') item.badge = () => self.stats.drafts_pending;
           });
 
           this.statCards = [
-            { label: 'Drafts Pending',   value: () => self.stats.drafts_pending,  sub: () => 'awaiting review' },
-            { label: 'Queue Depth',      value: () => self.stats.queue_depth,     sub: () => 'posts scheduled' },
-            { label: 'Experiments',      value: () => self.stats.total_digests,   sub: () => 'digested' },
+            { label: 'Drafts Pending',   value: () => self.stats.drafts_pending,   sub: () => 'awaiting review' },
+            { label: 'Slideshows',       value: () => self.stats.total_slideshows,  sub: () => 'generated today' },
+            { label: 'Experiments',      value: () => self.stats.total_digests,     sub: () => 'digested' },
             { label: 'Trend Analysis',   value: () => self.stats.last_trend_at ? 'Fresh' : 'None', sub: () => self.stats.last_trend_at ? self.formatDate(self.stats.last_trend_at) : 'Run pipeline' },
           ];
 
           this.pipelineCards = [
             {
               id: 'run', icon: '🚀', name: 'Full Pipeline',
-              desc: 'Fetch new experiments → blog → LinkedIn queue → video script.',
+              desc: 'Fetch new experiments → blog → slideshow + AI backgrounds → video script.',
               schedule: 'Triggered: on new EXPERIMENT*.md push',
               action: () => self.runPipeline('run'),
             },
             {
-              id: 'linkedin', icon: '💼', name: 'Daily LinkedIn',
-              desc: 'Post the next queued item. Falls back to fresh generation if queue is empty.',
-              schedule: 'Scheduled: 9:00 AM PT daily',
-              action: () => self.runPipeline('linkedin'),
-            },
-            {
               id: 'trends', icon: '📡', name: 'Trend Analysis',
-              desc: 'Scrape HN, Reddit, ArXiv, X and generate today\'s viral angles.',
+              desc: 'Scrape HN, ArXiv, HuggingFace, BioRxiv, Bluesky, Lobste.rs and generate viral angles.',
               schedule: 'Scheduled: 7:00 AM PT daily',
               action: () => self.runTrendPipeline(),
             },
             {
-              id: 'slideshow', icon: '🖼️', name: 'Slideshow',
-              desc: 'Generate a 7-slide LinkedIn carousel from today\'s trend report.',
+              id: 'slideshow', icon: '🖼️', name: 'Trend Slideshow',
+              desc: 'Generate a 7-slide AI-illustrated carousel from today\'s trend report.',
               schedule: 'Scheduled: 7:30 AM PT daily',
               action: () => self.runPipeline('slideshow'),
             },
           ];
 
           await this.loadStats();
-          this.loadQueue();
           this.loadDrafts();
         },
 
@@ -723,15 +616,6 @@
             if (r.ok) this.drafts = await r.json();
           } catch { this.showToast('Failed to load drafts', 'error'); }
           this.loading.drafts = false;
-        },
-
-        async loadQueue() {
-          this.loading.queue = true;
-          try {
-            const r = await fetch('/api/queue');
-            if (r.ok) this.queue = await r.json();
-          } catch { this.showToast('Failed to load queue', 'error'); }
-          this.loading.queue = false;
         },
 
         async loadTrends() {
@@ -810,31 +694,6 @@
           }
         },
 
-        async postNow(id) {
-          const r = await fetch(`/api/queue/${id}/approve`, { method: 'POST' });
-          if (r.ok) {
-            this.queue = this.queue.filter(q => q.id !== id);
-            this.selectedPost = null;
-            this.stats.queue_depth = Math.max(0, this.stats.queue_depth - 1);
-            this.showToast('Post sent to LinkedIn!');
-          } else {
-            const err = await r.json().catch(() => ({}));
-            this.showToast(err.detail || 'Failed to post to LinkedIn', 'error');
-          }
-        },
-
-        async skipPost(id) {
-          const r = await fetch(`/api/queue/${id}/skip`, { method: 'POST' });
-          if (r.ok) {
-            this.queue = this.queue.filter(q => q.id !== id);
-            this.selectedPost = null;
-            this.stats.queue_depth = Math.max(0, this.stats.queue_depth - 1);
-            this.showToast('Post skipped');
-          } else {
-            this.showToast('Failed to skip post', 'error');
-          }
-        },
-
         async runPipeline(name) {
           this.pipelines[name].running = true;
           this.pipelines[name].last_started = new Date().toISOString();
@@ -876,8 +735,7 @@
         },
 
         useAngle(angle) {
-          this.showToast(`Angle queued for next LinkedIn generation`);
-          // Future: actually inject this angle into the LinkedIn agent generation call
+          this.showToast(`Angle saved — run Trend Slideshow to generate a carousel from it`);
         },
 
         // ---- helpers --------------------------------------------------

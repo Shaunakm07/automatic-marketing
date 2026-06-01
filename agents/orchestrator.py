@@ -1,18 +1,17 @@
 """
 OrchestratorAgent — coordinates the full marketing pipeline.
 
-Reads new experiment files → digests them → generates blog + LinkedIn
-queue + video script → saves everything to Supabase as drafts.
-Nothing is published until explicitly approved (or the daily scheduler
-runs, which auto-publishes the next queued LinkedIn post).
+Reads new experiment files → digests them → generates blog + slideshow
++ video script → saves everything to Supabase as drafts.
+Nothing is published until explicitly approved via the dashboard.
 """
 
 import logging
 from rich.console import Console
 from rich.panel   import Panel
 
-from agents        import research_agent, blog_agent, linkedin_agent, video_agent
-from integrations  import github_reader, supabase_store
+from agents        import research_agent, blog_agent, slideshow_agent, video_agent
+from integrations  import github_reader, supabase_store, image_gen
 from config.settings import DRY_RUN
 
 log     = logging.getLogger(__name__)
@@ -24,12 +23,10 @@ def process_new_experiment(experiment_name: str, experiment_md: str) -> dict:
     Full pipeline for a single experiment file.
 
     Steps:
-      1. ResearchAgent   → structured digest
-      2. BlogAgent       → blog post (saved as draft)
-      3. LinkedInAgent   → 3 post queue (saved to content_queue)
-      4. VideoAgent      → video script + Higgsfield job (saved as draft)
-
-    Returns a summary dict of what was created.
+      1. ResearchAgent    → structured digest
+      2. BlogAgent        → blog post (saved as draft)
+      3. SlideshowAgent   → 7-slide carousel from research findings (saved as draft)
+      4. VideoAgent       → video script + Higgsfield job (saved as draft)
     """
     console.print(Panel(f"Processing: [bold]{experiment_name}[/bold]", style="cyan"))
 
@@ -55,19 +52,26 @@ def process_new_experiment(experiment_name: str, experiment_md: str) -> dict:
     ) if not DRY_RUN else "dry-run-blog-id"
     console.print(f"      Title: [green]{blog_title}[/green]")
 
-    # 3. LinkedIn queue
-    console.print("  [3/4] Generating LinkedIn post queue...")
-    recent_pillars = supabase_store.get_recent_pillars(7) if not DRY_RUN else []
-    posts = linkedin_agent.generate_post_queue(digest, recent_pillars=recent_pillars, n_posts=3)
-    queue_ids = []
-    for post in posts:
-        qid = supabase_store.enqueue_linkedin_post(
-            post_text = post["text"],
-            pillar    = post["pillar"],
-            source_id = blog_id,
-        ) if not DRY_RUN else f"dry-run-queue-{post['pillar']}"
-        queue_ids.append(qid)
-        console.print(f"      Queued [{post['pillar']}]: {post['text'][:80]}…")
+    # 3. Slideshow carousel
+    console.print("  [3/4] Generating research slideshow...")
+    show     = slideshow_agent.generate_slides_from_digest(digest)
+    console.print(f"      Carousel: [green]{show['title']}[/green]")
+    console.print("      Generating slide backgrounds...")
+    images   = image_gen.generate_all(show.get("slides", [])) if not DRY_RUN else {}
+    console.print(f"      Images: {len(images)}/{len(show.get('slides', []))}")
+    html     = slideshow_agent.render_html(show, images=images)
+    show_id  = supabase_store.save_draft(
+        content_type = "slideshow",
+        title        = show["title"],
+        body         = html,
+        metadata     = {
+            "slides":      show.get("slides", []),
+            "hashtags":    show.get("hashtags", []),
+            "experiment":  experiment_name,
+            "digest_id":   digest_id,
+            "source":      "research",
+        },
+    ) if not DRY_RUN else "dry-run-show-id"
 
     # 4. Video
     console.print("  [4/4] Generating video script + Higgsfield job...")
@@ -89,7 +93,8 @@ def process_new_experiment(experiment_name: str, experiment_md: str) -> dict:
         "headline_stat":   digest["headline_stat"],
         "blog_id":         blog_id,
         "blog_title":      blog_title,
-        "linkedin_queue":  queue_ids,
+        "slideshow_id":    show_id,
+        "slideshow_title": show["title"],
         "video_job_id":    video_result["job_id"],
         "video_id":        video_id,
     }
@@ -101,8 +106,6 @@ def run_full_pipeline(force_reprocess: bool = False) -> list[dict]:
     """
     Fetch all EXPERIMENT*.md files from Brain-LLM-Fine-Tuning and process
     any that haven't been digested yet.
-
-    Returns a list of summary dicts, one per processed experiment.
     """
     console.print("[bold]Amphora Marketing Orchestrator[/bold]")
     console.print(f"DRY_RUN={DRY_RUN}\n")

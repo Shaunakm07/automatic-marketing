@@ -58,54 +58,6 @@ def mark_published(item_id: str, published_url: str | None = None) -> None:
 # LinkedIn queue
 # ---------------------------------------------------------------------------
 
-def enqueue_linkedin_post(post_text: str, pillar: str, source_id: str | None = None) -> str:
-    row = {
-        "post_text":   post_text,
-        "pillar":      pillar,
-        "status":      "queued",
-        "source_id":   source_id,
-        "created_at":  datetime.now(timezone.utc).isoformat(),
-        "scheduled_for": None,
-    }
-    result = _client().table("content_queue").insert(row).execute()
-    return result.data[0]["id"]
-
-
-def get_next_queued_post() -> dict | None:
-    result = (
-        _client()
-        .table("content_queue")
-        .select("*")
-        .eq("status", "queued")
-        .order("created_at")
-        .limit(1)
-        .execute()
-    )
-    return result.data[0] if result.data else None
-
-
-def mark_post_sent(queue_id: str, linkedin_post_id: str) -> None:
-    _client().table("content_queue").update({
-        "status":        "sent",
-        "sent_at":       datetime.now(timezone.utc).isoformat(),
-        "linkedin_id":   linkedin_post_id,
-    }).eq("id", queue_id).execute()
-
-
-def get_recent_pillars(n: int = 7) -> list[str]:
-    """Return the pillar of the last n sent posts (for rotation logic)."""
-    result = (
-        _client()
-        .table("content_queue")
-        .select("pillar")
-        .eq("status", "sent")
-        .order("sent_at", desc=True)
-        .limit(n)
-        .execute()
-    )
-    return [r["pillar"] for r in result.data]
-
-
 # ---------------------------------------------------------------------------
 # Research digests
 # ---------------------------------------------------------------------------
@@ -142,39 +94,6 @@ def list_research_digests() -> list[dict]:
         .execute()
         .data
     )
-
-
-# ---------------------------------------------------------------------------
-# Extended content queue helpers
-# ---------------------------------------------------------------------------
-
-def list_queued_posts() -> list[dict]:
-    """All posts with status='queued', oldest first."""
-    return (
-        _client()
-        .table("content_queue")
-        .select("*")
-        .eq("status", "queued")
-        .order("created_at")
-        .execute()
-        .data
-    )
-
-
-def get_queue_item(queue_id: str) -> dict | None:
-    result = (
-        _client()
-        .table("content_queue")
-        .select("*")
-        .eq("id", queue_id)
-        .limit(1)
-        .execute()
-    )
-    return result.data[0] if result.data else None
-
-
-def skip_queue_item(queue_id: str) -> None:
-    _client().table("content_queue").update({"status": "skipped"}).eq("id", queue_id).execute()
 
 
 def delete_draft(item_id: str) -> None:

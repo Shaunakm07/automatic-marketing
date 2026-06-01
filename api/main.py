@@ -53,15 +53,15 @@ async def serve_dashboard():
 async def get_stats():
     from integrations import supabase_store
     try:
-        drafts       = supabase_store.get_drafts()
-        queue        = supabase_store.list_queued_posts()
-        trend        = supabase_store.get_latest_trend_report()
-        digests      = supabase_store.list_research_digests()
+        drafts     = supabase_store.get_drafts()
+        trend      = supabase_store.get_latest_trend_report()
+        digests    = supabase_store.list_research_digests()
+        slideshows = [d for d in drafts if d.get("content_type") == "slideshow"]
         return {
-            "drafts_pending": len(drafts),
-            "queue_depth":    len(queue),
-            "last_trend_at":  trend["created_at"] if trend else None,
-            "total_digests":  len(digests),
+            "drafts_pending":    len(drafts),
+            "total_slideshows":  len(slideshows),
+            "last_trend_at":     trend["created_at"] if trend else None,
+            "total_digests":     len(digests),
         }
     except Exception as e:
         log.exception("stats error")
@@ -187,45 +187,6 @@ async def regenerate_draft(item_id: str, body: RegenerateRequest):
 
 
 # ---------------------------------------------------------------------------
-# LinkedIn queue
-# ---------------------------------------------------------------------------
-
-@app.get("/api/queue")
-async def list_queue():
-    from integrations import supabase_store
-    try:
-        return supabase_store.list_queued_posts()
-    except Exception as e:
-        raise HTTPException(500, str(e))
-
-
-@app.post("/api/queue/{queue_id}/approve")
-async def post_now(queue_id: str):
-    from integrations import supabase_store, linkedin
-    try:
-        post = supabase_store.get_queue_item(queue_id)
-        if not post:
-            raise HTTPException(404, "Queue item not found")
-        linkedin_id = linkedin.post_text_update(post["post_text"])
-        supabase_store.mark_post_sent(queue_id, linkedin_id)
-        return {"status": "sent", "linkedin_id": linkedin_id}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(500, str(e))
-
-
-@app.post("/api/queue/{queue_id}/skip")
-async def skip_post(queue_id: str):
-    from integrations import supabase_store
-    try:
-        supabase_store.skip_queue_item(queue_id)
-        return {"status": "skipped", "id": queue_id}
-    except Exception as e:
-        raise HTTPException(500, str(e))
-
-
-# ---------------------------------------------------------------------------
 # Research digests
 # ---------------------------------------------------------------------------
 
@@ -271,7 +232,6 @@ async def trends_history():
 
 _pipeline_status: dict[str, dict] = {
     "run":       {"running": False, "last_started": None},
-    "linkedin":  {"running": False, "last_started": None},
     "trends":    {"running": False, "last_started": None},
     "slideshow": {"running": False, "last_started": None},
 }
@@ -330,26 +290,6 @@ async def run_full_pipeline(background_tasks: BackgroundTasks):
 
     background_tasks.add_task(_run)
     return {"status": "started", "pipeline": "run"}
-
-
-@app.post("/api/pipeline/linkedin")
-async def run_linkedin_pipeline(background_tasks: BackgroundTasks):
-    if _ON_VERCEL:
-        return _dispatch_github_workflow("daily_linkedin.yml")
-
-    if _pipeline_status["linkedin"]["running"]:
-        raise HTTPException(409, "LinkedIn pipeline already running")
-
-    def _run():
-        _set_running("linkedin", True)
-        try:
-            from pipelines import daily_linkedin
-            daily_linkedin.run()
-        finally:
-            _set_running("linkedin", False)
-
-    background_tasks.add_task(_run)
-    return {"status": "started", "pipeline": "linkedin"}
 
 
 @app.post("/api/pipeline/trends")

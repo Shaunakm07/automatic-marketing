@@ -41,9 +41,10 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   [[ -z "$key" || -z "$value" ]] && { skipped=$((skipped+1)); continue; }
 
   echo "→ $key"
-  # shellcheck disable=SC2086
-  printf '%s' "$value" | "$VERCEL" env add "$key" $ENVS --force 2>/dev/null || \
-  printf '%s' "$value" | "$VERCEL" env add "$key" $ENVS
+  for env in $ENVS; do
+    "$VERCEL" env add "$key" "$env" --value "$value" --yes 2>/dev/null || \
+    "$VERCEL" env add "$key" "$env" --value "$value"
+  done
   pushed=$((pushed+1))
 done < "$ENV_FILE"
 

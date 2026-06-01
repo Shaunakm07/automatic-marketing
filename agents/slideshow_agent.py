@@ -155,6 +155,69 @@ Produce a 7-slide LinkedIn carousel as JSON with exactly this structure:
 
 
 # ---------------------------------------------------------------------------
+# Research digest → slides (used by orchestrator instead of LinkedIn posts)
+# ---------------------------------------------------------------------------
+
+_RESEARCH_SYSTEM_PROMPT = f"""
+You are Amphora's creative director, writing LinkedIn carousel slides about a research experiment.
+
+{COMPANY_DESCRIPTION}
+
+Brand voice:
+{BRAND_VOICE}
+
+Carousel rules:
+- Each slide must work standalone.
+- Slide 1: the headline stat as a pattern interrupt — one bold sentence.
+- Slides 2-4: one key finding each — lead with the specific result, then what it means.
+- Slide 5: the bigger implication — why this finding matters for the future of AI.
+- Slide 6: Amphora's position — name TRIBE v2, Broca's area, fMRI prediction specifically.
+- Slide 7: CTA — two sentences max.
+- Headline: max 10 words. Body: max 40 words. No filler.
+- visual_note: one sentence for the ideal background image.
+- Return ONLY valid JSON — no markdown fences, no commentary.
+""".strip()
+
+
+def generate_slides_from_digest(digest: dict) -> dict:
+    """
+    Generate a 7-slide carousel from a research experiment digest.
+    Used by the orchestrator in place of LinkedIn posts.
+    """
+    findings_block = "\n".join(f"  {i+1}. {f}" for i, f in enumerate(digest.get("key_findings", [])[:3]))
+
+    user_message = f"""
+Research experiment: {digest['experiment_name']}
+Headline stat: {digest['headline_stat']}
+One-liner: {digest['one_liner']}
+
+Key findings (use for slides 2-4):
+{findings_block}
+
+Narrative:
+{digest['narrative'][:600]}
+
+Produce a 7-slide LinkedIn carousel as JSON:
+{{
+  "title": "<experiment name + short descriptor>",
+  "slides": [
+    {{"number": 1, "type": "hook",      "headline": "<max 10 words — the headline stat as a pattern interrupt>",       "body": "<max 40 words>", "visual_note": "<one sentence>", "trending_peg": null}},
+    {{"number": 2, "type": "finding",   "headline": "<max 10 words — key finding 1>",  "body": "<max 40 words>", "visual_note": "<one sentence>", "trending_peg": null}},
+    {{"number": 3, "type": "finding",   "headline": "<max 10 words — key finding 2>",  "body": "<max 40 words>", "visual_note": "<one sentence>", "trending_peg": null}},
+    {{"number": 4, "type": "finding",   "headline": "<max 10 words — key finding 3>",  "body": "<max 40 words>", "visual_note": "<one sentence>", "trending_peg": null}},
+    {{"number": 5, "type": "synthesis", "headline": "<max 10 words — the bigger implication>", "body": "<max 40 words>", "visual_note": "<one sentence>", "trending_peg": null}},
+    {{"number": 6, "type": "amphora",   "headline": "<max 10 words — Amphora's specific answer>", "body": "<max 40 words — name TRIBE v2, Broca's area, fMRI>", "visual_note": "<one sentence — brain scan imagery>", "trending_peg": null}},
+    {{"number": 7, "type": "cta",       "headline": "Follow Amphora", "body": "<max 2 sentences>", "visual_note": "<one sentence>", "trending_peg": null}}
+  ],
+  "hashtags": ["#BrainAI", "#fMRI", "#NLP", "#GenerativeAI", "#Neuroscience"]
+}}
+""".strip()
+
+    raw_json = run_agent(_RESEARCH_SYSTEM_PROMPT, user_message, max_tokens=2000)
+    return json.loads(raw_json)
+
+
+# ---------------------------------------------------------------------------
 # HTML renderer
 # ---------------------------------------------------------------------------
 
