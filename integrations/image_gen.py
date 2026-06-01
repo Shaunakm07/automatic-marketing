@@ -38,9 +38,11 @@ def generate_background(visual_note: str) -> str:
     try:
         from huggingface_hub import InferenceClient
 
-        client = InferenceClient(provider="fal-ai", api_key=hf_token)
+        # FLUX.1-schnell runs on HuggingFace's own inference (free within rate limits).
+        # No provider= needed — HF hosts this model directly.
+        client = InferenceClient(api_key=hf_token)
         prompt = visual_note.rstrip(".") + _STYLE_SUFFIX
-        image  = client.text_to_image(prompt, model="Qwen/Qwen-Image")
+        image  = client.text_to_image(prompt, model="black-forest-labs/FLUX.1-schnell")
 
         buf = io.BytesIO()
         image.save(buf, format="JPEG", quality=85)
