@@ -18,6 +18,18 @@ from agents.base import run_agent
 from config.strategy import BRAND_VOICE, COMPANY_DESCRIPTION
 
 
+def _parse_json(raw: str) -> dict:
+    """Parse JSON from agent output, stripping markdown fences if present."""
+    raw = raw.strip()
+    if not raw:
+        raise ValueError("Agent returned an empty response")
+    # Strip ```json ... ``` or ``` ... ``` wrappers
+    if raw.startswith("```"):
+        lines = raw.split("\n")
+        raw = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+    return json.loads(raw.strip())
+
+
 SYSTEM_PROMPT = f"""
 You are Amphora's creative director, writing LinkedIn carousel slides.
 
@@ -150,8 +162,8 @@ Produce a 7-slide LinkedIn carousel as JSON with exactly this structure:
 }}
 """.strip()
 
-    raw_json = run_agent(SYSTEM_PROMPT, user_message, max_tokens=2000)
-    return json.loads(raw_json)
+    raw_json = run_agent(SYSTEM_PROMPT, user_message, max_tokens=4096)
+    return _parse_json(raw_json)
 
 
 # ---------------------------------------------------------------------------
@@ -213,8 +225,8 @@ Produce a 7-slide LinkedIn carousel as JSON:
 }}
 """.strip()
 
-    raw_json = run_agent(_RESEARCH_SYSTEM_PROMPT, user_message, max_tokens=2000)
-    return json.loads(raw_json)
+    raw_json = run_agent(_RESEARCH_SYSTEM_PROMPT, user_message, max_tokens=4096)
+    return _parse_json(raw_json)
 
 
 # ---------------------------------------------------------------------------
