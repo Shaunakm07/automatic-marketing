@@ -15,12 +15,12 @@ import os
 # Fixed style applied to every slide — describes the visual treatment.
 # The slide's visual_note provides the subject matter; this wraps it.
 _STYLE_SUFFIX = (
-    ". Style: aggressive color misregistration — fluorescent pink, cyan, electric orange, "
-    "and black colors with large intentional offsets bleeding onto a deep green background. "
-    "Coarse uneven halftone dot patterns on all surfaces. Rough torn-paper edges on all forms. "
-    "Unrefined ink bleed along edges. Heavily distressed texture — crumpled coarse-fiber paper "
-    "with ink speckles and visible paper fibers. Flat solid color fields over dot textures, "
-    "no gradients. Vibrant unnatural neon palette for maximum contrast. Punk zine aesthetic."
+    ". Style: aggressive color misregistration — a clashing combination of vibrant fluorescent "
+    "neon and deep saturated colors with large intentional offsets bleeding onto a dark, contrasting "
+    "background. Coarse uneven halftone dot patterns on all surfaces. Rough torn-paper edges on "
+    "all forms. Unrefined ink bleed along edges. Heavily distressed texture — crumpled coarse-fiber "
+    "paper with ink speckles and visible paper fibers. Flat solid color fields over dot textures, "
+    "no gradients. Unnatural palette selected for maximum jarring contrast. Punk zine aesthetic."
 )
 
 
