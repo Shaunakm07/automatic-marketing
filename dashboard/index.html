@@ -309,12 +309,39 @@
 
               <!-- Expanded body -->
               <div x-show="selectedDraft === draft.id" class="border-t border-gray-800/60 px-4 py-4">
-                <pre class="prose-dark text-gray-400 max-h-96 overflow-y-auto mb-4 bg-gray-950/60 rounded-lg p-3" x-text="draft.body"></pre>
+
+                <!-- Slideshow: render iframe preview -->
+                <template x-if="draft.content_type === 'slideshow'">
+                  <iframe
+                    :srcdoc="draft.body"
+                    class="w-full rounded-lg border border-gray-700 mb-4"
+                    style="height:380px"
+                    sandbox="allow-same-origin"
+                  ></iframe>
+                </template>
+
+                <!-- Other types: raw text -->
+                <template x-if="draft.content_type !== 'slideshow'">
+                  <pre class="prose-dark text-gray-400 max-h-96 overflow-y-auto mb-4 bg-gray-950/60 rounded-lg p-3" x-text="draft.body"></pre>
+                </template>
+
                 <div class="flex gap-2 flex-wrap">
-                  <button
-                    @click="approveDraft(draft.id)"
-                    class="px-3 py-1.5 rounded-md text-xs font-medium bg-green-600/20 text-green-300 hover:bg-green-600/40 ring-1 ring-green-600/30 transition-colors"
-                  >Approve & Publish</button>
+
+                  <!-- Slideshows download instead of publish -->
+                  <template x-if="draft.content_type === 'slideshow'">
+                    <button
+                      @click="downloadSlideshow(draft)"
+                      class="px-3 py-1.5 rounded-md text-xs font-medium bg-teal-600/20 text-teal-300 hover:bg-teal-600/40 ring-1 ring-teal-600/30 transition-colors"
+                    >⬇ Download HTML</button>
+                  </template>
+
+                  <template x-if="draft.content_type !== 'slideshow'">
+                    <button
+                      @click="approveDraft(draft.id)"
+                      class="px-3 py-1.5 rounded-md text-xs font-medium bg-green-600/20 text-green-300 hover:bg-green-600/40 ring-1 ring-green-600/30 transition-colors"
+                    >Approve & Publish</button>
+                  </template>
+
                   <button
                     @click="openRegenerate(draft)"
                     class="px-3 py-1.5 rounded-md text-xs font-medium bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/40 ring-1 ring-indigo-600/30 transition-colors"
@@ -498,6 +525,11 @@
             </div>
             <div class="flex items-center gap-3 text-sm">
               <span class="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></span>
+              <span class="text-gray-400 w-44 flex-shrink-0">Daily Slideshow</span>
+              <span class="text-gray-600">7:30 AM PT · <code class="text-gray-500 text-xs">.github/workflows/daily_slideshow.yml</code></span>
+            </div>
+            <div class="flex items-center gap-3 text-sm">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></span>
               <span class="text-gray-400 w-44 flex-shrink-0">Weekly Video</span>
               <span class="text-gray-600">Mondays 8:00 AM PT · <code class="text-gray-500 text-xs">.github/workflows/weekly_video.yml</code></span>
             </div>
@@ -555,9 +587,10 @@
         loading: { stats: false, drafts: false, queue: false, trends: false },
 
         pipelines: {
-          run:      { running: false, last_started: null },
-          linkedin: { running: false, last_started: null },
-          trends:   { running: false, last_started: null },
+          run:       { running: false, last_started: null },
+          linkedin:  { running: false, last_started: null },
+          trends:    { running: false, last_started: null },
+          slideshow: { running: false, last_started: null },
         },
 
         toast: null,
@@ -591,6 +624,7 @@
           { value: 'all',          label: 'All' },
           { value: 'blog',         label: 'Blog' },
           { value: 'video_script', label: 'Video' },
+          { value: 'slideshow',    label: 'Slides' },
         ],
 
         pipelineCards: [],   // populated in init
@@ -650,6 +684,12 @@
               desc: 'Scrape HN, Reddit, ArXiv, X and generate today\'s viral angles.',
               schedule: 'Scheduled: 7:00 AM PT daily',
               action: () => self.runTrendPipeline(),
+            },
+            {
+              id: 'slideshow', icon: '🖼️', name: 'Slideshow',
+              desc: 'Generate a 7-slide LinkedIn carousel from today\'s trend report.',
+              schedule: 'Scheduled: 7:30 AM PT daily',
+              action: () => self.runPipeline('slideshow'),
             },
           ];
 
@@ -715,6 +755,24 @@
           } else {
             this.showToast('Failed to approve draft', 'error');
           }
+        },
+
+        downloadSlideshow(draft) {
+          const blob = new Blob([draft.body], { type: 'text/html' });
+          const url  = URL.createObjectURL(blob);
+          const a    = document.createElement('a');
+          a.href     = url;
+          a.download = (draft.title || 'slideshow').replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.html';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          // Mark as published so it leaves the queue
+          fetch(`/api/drafts/${draft.id}/approve`, { method: 'POST' });
+          this.drafts = this.drafts.filter(d => d.id !== draft.id);
+          this.selectedDraft = null;
+          this.stats.drafts_pending = Math.max(0, this.stats.drafts_pending - 1);
+          this.showToast('Downloaded — open in browser and File → Print → Save as PDF');
         },
 
         async rejectDraft(id) {
@@ -861,17 +919,18 @@
             blog:             'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/30',
             video_script:     'bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/30',
             research_digest:  'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/30',
+            slideshow:        'bg-teal-500/20 text-teal-300 ring-1 ring-teal-500/30',
           };
           return m[type] || 'bg-gray-700 text-gray-400';
         },
 
         typeLabel(type) {
-          const m = { blog: 'Blog', video_script: 'Video Script', research_digest: 'Research Digest' };
+          const m = { blog: 'Blog', video_script: 'Video Script', research_digest: 'Research Digest', slideshow: 'Slideshow' };
           return m[type] || type;
         },
 
         typeShort(type) {
-          const m = { blog: 'Blog', video_script: 'Video', research_digest: 'Research' };
+          const m = { blog: 'Blog', video_script: 'Video', research_digest: 'Research', slideshow: 'Slides' };
           return m[type] || type;
         },
 
