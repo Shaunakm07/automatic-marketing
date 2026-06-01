@@ -20,7 +20,9 @@ _STYLE_SUFFIX = (
     "background. Coarse uneven halftone dot patterns on all surfaces. Rough torn-paper edges on "
     "all forms. Unrefined ink bleed along edges. Heavily distressed texture — crumpled coarse-fiber "
     "paper with ink speckles and visible paper fibers. Flat solid color fields over dot textures, "
-    "no gradients. Unnatural palette selected for maximum jarring contrast. Punk zine aesthetic."
+    "no gradients. Unnatural palette selected for maximum jarring contrast. Punk zine aesthetic. "
+    "ABSOLUTELY NO TEXT, NO WORDS, NO LETTERS, NO NUMBERS, NO TYPOGRAPHY, NO WRITING OF ANY KIND "
+    "anywhere in the image. Pure visual only."
 )
 
 
