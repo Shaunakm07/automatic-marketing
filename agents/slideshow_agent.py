@@ -175,31 +175,50 @@ _SLIDE_LABELS = {
 }
 
 
-def render_html(slideshow: dict) -> str:
-    """Render slide JSON as a self-contained HTML preview (print-to-PDF friendly)."""
+def render_html(slideshow: dict, images: dict[int, str] | None = None) -> str:
+    """
+    Render slide JSON as a self-contained HTML preview (print-to-PDF friendly).
+
+    images: optional {slide_number: base64_data_uri} from image_gen.generate_all().
+            When present, each slide's visual_note image is used as a background
+            with a dark overlay for text readability.
+    """
+    images    = images or {}
+    n_slides  = len(slideshow.get("slides", []))
     slides_html = ""
+
     for slide in slideshow.get("slides", []):
-        stype     = slide.get("type", "trend")
-        bg, fg    = _SLIDE_COLORS.get(stype, ("#111", "#fff"))
-        label     = _SLIDE_LABELS.get(stype, "")
-        headline  = slide.get("headline", "")
-        body      = slide.get("body", "")
-        num       = slide.get("number", "")
-        peg       = slide.get("trending_peg") or ""
-        vis_note  = slide.get("visual_note", "")
+        stype    = slide.get("type", "trend")
+        bg, fg   = _SLIDE_COLORS.get(stype, ("#111", "#fff"))
+        label    = _SLIDE_LABELS.get(stype, "")
+        headline = slide.get("headline", "")
+        body     = slide.get("body", "")
+        num      = slide.get("number", "")
+        peg      = slide.get("trending_peg") or ""
 
         label_html = f'<div class="label">{label}</div>' if label else ""
-        peg_html   = f'<div class="peg">⚡ {peg}</div>' if peg else ""
-        num_html   = f'<div class="num">{num} / {len(slideshow.get("slides", []))}</div>'
+        peg_html   = f'<div class="peg">⚡ {peg}</div>'  if peg   else ""
+        num_html   = f'<div class="num">{num} / {n_slides}</div>'
+
+        # Background: generated image (with overlay) or solid color fallback
+        img_uri = images.get(num, "")
+        if img_uri:
+            bg_style  = f"background-image: url('{img_uri}'); background-size: cover; background-position: center;"
+            overlay   = '<div class="img-overlay"></div>'
+        else:
+            bg_style = f"background: {bg};"
+            overlay  = ""
 
         slides_html += f"""
-<div class="slide" style="background:{bg}; color:{fg};">
-  {num_html}
-  {label_html}
-  <div class="headline">{headline}</div>
-  <div class="body">{body}</div>
-  {peg_html}
-  <div class="vis-note">🎨 {vis_note}</div>
+<div class="slide" style="{bg_style} color:{fg};">
+  {overlay}
+  <div class="content">
+    {num_html}
+    {label_html}
+    <div class="headline">{headline}</div>
+    <div class="body-text">{body}</div>
+    {peg_html}
+  </div>
 </div>
 """
 
@@ -214,28 +233,41 @@ def render_html(slideshow: dict) -> str:
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-         background: #222; padding: 40px 20px; }}
-  h1 {{ color: #fff; font-size: 14px; font-weight: 400; opacity: .5;
-        margin-bottom: 32px; letter-spacing: .1em; text-transform: uppercase; }}
+         background: #111; padding: 40px 20px; }}
+  h1 {{ color: #fff; font-size: 13px; font-weight: 400; opacity: .4;
+        margin-bottom: 32px; letter-spacing: .12em; text-transform: uppercase; }}
   .slide {{
     width: 600px; height: 600px; margin: 0 auto 24px;
-    border-radius: 12px; padding: 48px;
-    display: flex; flex-direction: column; justify-content: space-between;
-    page-break-after: always; position: relative;
+    border-radius: 12px; overflow: hidden;
+    position: relative; page-break-after: always;
   }}
-  .num {{ font-size: 11px; opacity: .4; letter-spacing: .15em; }}
-  .label {{ font-size: 11px; font-weight: 700; letter-spacing: .2em;
-            opacity: .6; margin-top: 4px; }}
-  .headline {{ font-size: 32px; font-weight: 800; line-height: 1.15;
-               margin-top: auto; padding-top: 24px; }}
-  .body {{ font-size: 15px; line-height: 1.65; opacity: .85; margin-top: 16px; }}
-  .peg {{ font-size: 11px; opacity: .5; margin-top: 16px; font-style: italic; }}
-  .vis-note {{ font-size: 11px; opacity: .35; margin-top: 8px; }}
-  .hashtags {{ color: #aaa; font-size: 13px; text-align: center;
-               margin-top: 32px; width: 600px; margin-left: auto;
-               margin-right: auto; }}
+  .img-overlay {{
+    position: absolute; inset: 0;
+    background: linear-gradient(160deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,.35) 100%);
+    z-index: 1;
+  }}
+  .content {{
+    position: relative; z-index: 2;
+    height: 100%; padding: 44px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }}
+  .num {{ font-size: 11px; opacity: .5; letter-spacing: .15em; color: #fff; }}
+  .label {{ font-size: 10px; font-weight: 800; letter-spacing: .25em;
+            opacity: .7; margin-top: 4px; color: #fff;
+            text-transform: uppercase; }}
+  .headline {{ font-size: 30px; font-weight: 900; line-height: 1.12;
+               margin-top: auto; padding-top: 20px; color: #fff;
+               text-shadow: 0 2px 12px rgba(0,0,0,.6); }}
+  .body-text {{ font-size: 14px; line-height: 1.6; opacity: .9;
+                margin-top: 14px; color: #f0f0f0;
+                text-shadow: 0 1px 6px rgba(0,0,0,.5); }}
+  .peg {{ font-size: 10px; opacity: .55; margin-top: 14px;
+          font-style: italic; color: #fff; }}
+  .hashtags {{ color: #777; font-size: 12px; text-align: center;
+               margin-top: 28px; width: 600px; margin-left: auto;
+               margin-right: auto; line-height: 1.8; }}
   @media print {{
-    body {{ background: #fff; padding: 0; }}
+    body {{ background: #000; padding: 0; }}
     .slide {{ margin: 0; border-radius: 0; width: 100vw; height: 100vh; }}
   }}
 </style>

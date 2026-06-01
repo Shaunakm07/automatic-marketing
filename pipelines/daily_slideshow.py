@@ -10,7 +10,7 @@ import logging
 from rich.console import Console
 from rich.panel   import Panel
 
-from integrations import supabase_store
+from integrations import supabase_store, image_gen
 from agents       import slideshow_agent
 from config.settings import DRY_RUN
 
@@ -47,9 +47,19 @@ def run(dry_run: bool = False) -> dict:
     for s in slideshow.get("slides", []):
         console.print(f"      [{s['number']}] {s['type'].upper()}: {s['headline'][:60]}")
 
-    # 3. Render and save
-    console.print("  [3/3] Saving slideshow draft...")
-    html = slideshow_agent.render_html(slideshow)
+    # 3. Generate background images
+    console.print("  [3/4] Generating slide background images...")
+    import os
+    if os.environ.get("HF_TOKEN"):
+        images = image_gen.generate_all(slideshow.get("slides", []))
+        console.print(f"      Generated {len(images)}/{n_slides} images")
+    else:
+        images = {}
+        console.print("      [dim]HF_TOKEN not set — skipping image generation[/dim]")
+
+    # 4. Render and save
+    console.print("  [4/4] Saving slideshow draft...")
+    html = slideshow_agent.render_html(slideshow, images=images)
     if not (DRY_RUN or dry_run):
         import json
         draft_id = supabase_store.save_draft(

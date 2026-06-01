@@ -13,3 +13,7 @@ uvicorn[standard]>=0.30.0
 
 # Trend agent
 tweepy>=4.14.0          # X/Twitter API v2 (optional — only needed if X_BEARER_TOKEN is set)
+
+# Slideshow image generation
+huggingface_hub>=0.23.0
+Pillow>=10.0.0
